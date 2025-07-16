@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Health Buddy</title>
+  <style>
+    body {
+      background-color: #f0f8ff;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      color: #333;
+    }
+    .container {
+      max-width: 600px;
+      background: white;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      margin: auto;
+    }
+    input, select, button {
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    button {
+      background-color: #007BFF;
+      color: white;
+      border: none;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    .result, .history, .remedies {
+      margin-top: 20px;
+    }
+    video {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🩺 My Health Buddy</h1>
+    <h2>Check Your Vitals</h2>
+    <input type="number" id="systolic" placeholder="Systolic BP">
+    <input type="number" id="diastolic" placeholder="Diastolic BP">
+    <input type="number" id="sugar" placeholder="Blood Sugar (mg/dL)">
+    <input type="number" id="heartrate" placeholder="Heart Rate (BPM)">
+    <label><input type="checkbox" id="fasting"> Fasting?</label>
+    <button onclick="checkVitals()">Check My Vitals</button>
+    <button onclick="startHeartRateTest()">Start Heart Rate Test (Camera)</button>
+    <div class="result" id="result"></div>
+
+    <div class="history">
+      <h2>📈 History</h2>
+      <ul id="historyList"></ul>
+    </div>
+
+    <div class="remedies">
+      <h2>💊 CureBox</h2>
+      <select id="issue" onchange="showRemedies()">
+        <option>Headache</option>
+        <option>Cold</option>
+      </select>
+      <ul id="remedyList"></ul>
+    </div>
+    <video id="video" autoplay muted playsinline></video>
+  </div>
+
+  <script>
+    const speak = (text) => {
+      const utter = new SpeechSynthesisUtterance(text);
+      window.speechSynthesis.speak(utter);
+    };
+
+    const getHistory = () => JSON.parse(localStorage.getItem('vitalsHistory')) || [];
+
+    const showHistory = () => {
+      const list = document.getElementById('historyList');
+      list.innerHTML = '';
+      getHistory().forEach(entry => {
+        const li = document.createElement('li');
+        li.textContent = `${entry.date} — BP: ${entry.sys}/${entry.dia}, Sugar: ${entry.sugarVal}, HR: ${entry.hr} BPM`;
+        list.appendChild(li);
+      });
+    };
+
+    function checkVitals() {
+      const sys = parseInt(document.getElementById('systolic').value);
+      const dia = parseInt(document.getElementById('diastolic').value);
+      const sugar = parseInt(document.getElementById('sugar').value);
+      const hr = parseInt(document.getElementById('heartrate').value);
+      const fasting = document.getElementById('fasting').checked;
+      let res = '';
+
+      if (!sys || !dia || !sugar || !hr) {
+        res = '❌ Please enter all values correctly.';
+        document.getElementById('result').innerText = res;
+        return;
+      }
+
+      if (sys < 120 && dia < 80) res += '🩺 BP: Normal\n';
+      else if (sys < 130 && dia < 80) res += '🩺 BP: Elevated\n';
+      else if (sys < 140 || dia < 90) res += '🩺 BP: Stage 1 Hypertension\n';
+      else if (sys < 180 && dia < 120) res += '🩺 BP: Stage 2 Hypertension\n';
+      else res += '🩺 BP Crisis! 🚨 See a doctor immediately.\n';
+
+      if (fasting) {
+        if (sugar < 70) res += '🩸 Sugar: Low (Hypoglycemia)\n';
+        else if (sugar <= 100) res += '🩸 Sugar: Normal (Fasting)\n';
+        else if (sugar <= 125) res += '🩸 Sugar: Prediabetes\n';
+        else res += '🩸 Sugar: Diabetes – Consult your doctor\n';
+      } else {
+        if (sugar < 70) res += '🩸 Sugar: Low\n';
+        else if (sugar <= 140) res += '🩸 Sugar: Normal (Post-meal)\n';
+        else if (sugar <= 180) res += '🩸 Sugar: Slightly High (Post-meal)\n';
+        else res += '🩸 Sugar: High – Consult your doctor\n';
+      }
+
+      if (hr >= 60 && hr <= 100) {
+        res += '❤️ Heart Rate: Normal\n';
+        speak('Your heart rate is normal.');
+      } else if (hr > 100) {
+        res += '❤️ Heart Rate: High – Consider a checkup\n';
+        speak('Your heart rate is high. Please consider a checkup.');
+      } else {
+        res += '❤️ Heart Rate: Low\n';
+        speak('Your heart rate is low. Please rest and check again.');
+      }
+
+      const history = getHistory();
+      const entry = { date: new Date().toLocaleString(), sys, dia, sugarVal: sugar, hr };
+      history.unshift(entry);
+      localStorage.setItem('vitalsHistory', JSON.stringify(history));
+      showHistory();
+      document.getElementById('result').innerText = res;
+    }
+
+    const remedies = {
+      Headache: [
+        '💧 Drink Water – Dehydration is a common cause.',
+        '❄️ Cold Compress – Especially useful for migraines.',
+        '🌿 Peppermint Oil – Apply to temples.',
+        '🍵 Ginger Tea – Natural pain relief.'
+      ],
+      Cold: [
+        '🍯 Honey in warm water – Soothes throat.',
+        '🌡️ Steam Inhalation – Clears nasal passage.',
+        '🧄 Garlic Soup – Antiviral properties.',
+        '🍋 Lemon Tea – Boosts immunity.'
+      ]
+    };
+
+    function showRemedies() {
+      const issue = document.getElementById('issue').value;
+      const list = document.getElementById('remedyList');
+      list.innerHTML = '';
+      remedies[issue].forEach(tip => {
+        const li = document.createElement('li');
+        li.textContent = tip;
+        list.appendChild(li);
+      });
+    }
+
+    function startHeartRateTest() {
+      const video = document.getElementById('video');
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(stream => {
+        video.srcObject = stream;
+        const track = stream.getVideoTracks()[0];
+
+        if (track.getCapabilities().torch) {
+          track.applyConstraints({ advanced: [{ torch: true }] });
+        }
+
+        let bpmCount = 0;
+        let readings = [];
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const interval = setInterval(() => {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0);
+          const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const avg = frame.data.reduce((a, b, i) => i % 4 === 0 ? a + b : a, 0) / (frame.data.length / 4);
+          readings.push(avg);
+
+          if (readings.length > 60) {
+            let beats = 0;
+            for (let i = 1; i < readings.length; i++) {
+              if (readings[i] > readings[i - 1]) beats++;
+            }
+            const bpm = Math.round((beats / readings.length) * 60);
+            document.getElementById('heartrate').value = bpm;
+            document.getElementById('result').innerText = `📍 Estimated Heart Rate: ${bpm} BPM`;
+            speak(`Your estimated heart rate is ${bpm} beats per minute.`);
+            clearInterval(interval);
+            stream.getTracks().forEach(t => t.stop());
+          }
+        }, 500);
+      }).catch(err => {
+        alert('Camera access denied or not supported.');
+      });
+    }
+
+    showRemedies();
+    showHistory();
+  </script>
+</body>
+</html>
